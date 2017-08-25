@@ -11,26 +11,14 @@ contract Splitter {
     //states
     address public owner;
     
-    event Transfer(string message, address from, address to, uint256 amount);
-    event Created(string message, address receiver1, address receiver2, bool isCreated);
+    event LogTransfer(address receiver, uint amount);
+    event LogBalanceUpdated(address user, uint amount);
     
-    //splitter struct. splitterStarter = Alice. receiver1 = Bob receiver2 = Carol
-    struct SplitterStruct {
-        address receiver1;
-        address receiver2;
-    }
-    
-    //mapping - addres of who is creating the splitter is the key
-    mapping (address => SplitterStruct) public SplitterMapping;
+    mapping(address => uint) balances;
     
     //Constructor
-    function Splitter() payable {
+    function Splitter() {
         owner = msg.sender;
-    }
-    
-    //returns balance of the contract
-    function getBalance() public constant returns (uint) {
-        return this.balance;
     }
     
     /**
@@ -38,86 +26,78 @@ contract Splitter {
      * @param from Address of the user to check the balance.
      * @return balance The calculated perimeter.
      */
-    function getUserBalance(address from) public constant returns(uint) {  
-      return from.balance;
+    function getSplitterBalance(address from) constant public returns(uint) { 
+        return balances[from]; 
     }
     
-    //it starts and update a splitter. 
-    //each addres can have only one splitter.
-    //and splitter should be the msg.sender
-    function startSplitter(address receiverSplit1, address receiverSplit2) 
-        public 
-        returns(bool) {  
+    //split the value received between two users and update their balance
+    function split(address address1, address address2) payable public returns(bool success) {
+        //checking address not equal to zero to make sure balances mapping has no address equal to zero
+        if(address1 == 0 || address2 == 0 ) revert();
         
-        //if splitter receivers are equal, return false
-        if(receiverSplit1 == receiverSplit2){
-           Created("Splitter was NOT created. Receivers can´t be equal.",receiverSplit1,receiverSplit2,false);
-           return false; 
-        } 
+        uint amountSplitted = msg.value / 2; 
         
-        if(receiverSplit1 == 0 || receiverSplit2 == 0 ) {
-            Created("Splitter was NOT created. They are equual to 0x0",receiverSplit1,receiverSplit2,false);
-            return false;
+        uint amountAddress1 = amountSplitted;
+        uint amountAddress2 = amountSplitted;
+        
+        if(balances[address1] > 0 ){
+            amountAddress1 += balances[address1];
         }
         
-        SplitterStruct memory newSplitter;
-        newSplitter.receiver1 = receiverSplit1;
-        newSplitter.receiver2 = receiverSplit2;
+        if(balances[address2] > 0 ){
+            amountAddress2 += balances[address2];
+        }
         
-        SplitterMapping[msg.sender] = newSplitter;
+        balances[address1] = amountAddress1;
+        balances[address2] = amountAddress2;
         
-        Created("Splitter is created",receiverSplit1,receiverSplit2,true);
+        LogBalanceUpdated(address1 , amountAddress1);
+        LogBalanceUpdated(address2 , amountAddress2);
         
         return true;
     }
-    
-    function delete_() public returns(bool) {
-        //only splitter can delete its key from the list   
-        delete SplitterMapping[msg.sender];
-
+   
+    // user collect his money 
+    function withdrawFunds() public returns(bool success) { 
+        uint amountToTransfer = balances[msg.sender];
+        
+        if(amountToTransfer>0){
+            balances[ msg.sender] = 0;
+            msg.sender.transfer(amountToTransfer);
+            
+            LogBalanceUpdated(msg.sender, 0);
+            LogTransfer(msg.sender, amountToTransfer);
+        }
+        
         return true;
     }
     
     //It will kill the contract and return all remain funds to the 
     //contract owner
-    function killMe() returns (bool) {
+    function killMe() public returns ( bool success) {
         require(msg.sender == owner);
+        
+        uint amount = this.balance;
+        
         suicide(owner);
+        
+        LogTransfer(msg.sender, amount);
+        
         return true;
     }
     
-    function isSenderRegisteredSplitter(address whom) private returns(bool){
-        address testAddress = SplitterMapping[whom].receiver1;
-        if(testAddress==0) return false;
+    //Owner transfer contract funds to him
+    function claimContractFunds() public returns ( bool success) {
+        require(msg.sender == owner);
+        if(this.balance > 0 ){
+            msg.sender.transfer(this.balance);
+            LogTransfer(msg.sender, this.balance);
+        }
+        
         return true;
     }
 
-    //it receives a transfer, so check if it is "Alice", if yes, split
-    //the ether and then send each amout to Bob and Carol.
-    function () payable {
-        
-        //check if the msg.addres is registered as a splitter. if yes (address returned is not equal to 0),
-        //get the other address to split the value. if no, just receive the ether and do nothing
-        if(isSenderRegisteredSplitter(msg.sender)){
-           // BigNumber amountToSplit = new BigNumber(msg.value);
-            uint amountToSplit = msg.value;
-            
-            //if amountReceived == 1 wei, it will fail because it is
-            //the least amount and it can´t be divide. so, we need to throw
-            if(amountToSplit == 1) {
-                Transfer("Amount is equal to 1 Wei and can´t be splitted. Amount is going to the contract.", msg.sender, this, amountToSplit);
-            }
-            else{
-                uint amountSplitted = amountToSplit / 2;
-    
-                address receiver1 = SplitterMapping[msg.sender].receiver1;
-                address receiver2 = SplitterMapping[msg.sender].receiver2;
-                
-                receiver1.transfer(amountSplitted);
-                receiver2.transfer(amountSplitted);
-                Transfer("Amount was splitted with success", msg.sender, receiver1, amountSplitted);
-                Transfer("Amount was splitted with success", msg.sender, receiver2, amountSplitted);
-            }
-        }
+    //fallback is not payable, so contract can´t receive funds
+    function () {
     }
 }
