@@ -35,6 +35,8 @@ contract Splitter {
         //checking address not equal to zero to make sure balances mapping has no address equal to zero
         if(address1 == 0 || address2 == 0 ) revert();
         
+        //feedback asked me about odd numbers. But I don´t see a problem here.
+        //if it is a 1 wei, amountSplitted will be zero and 1 wei stays with the contract.
         uint amountSplitted = msg.value / 2; 
         
         uint amountAddress1 = amountSplitted;
