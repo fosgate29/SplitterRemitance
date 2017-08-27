@@ -22,14 +22,12 @@ contract Remittance {
     }
     
     mapping (address => RemittanceStruct) public RemittanceMapping;
-    mapping (bytes32 => uint32) private passwordsUsed;
+    mapping (bytes32 => bool) private passwordsAlreadyUsed;
     
     //Log events
-    event LogBeginRemittance(address remittanceOwner, address beneficiary, uint deadlineInSeconds,  
-                        bytes32 passwordHash, uint amountReceived);
-    event LogTransfer(address beneficiary, uint amount);
-    event LogFundsUnclaimed(address remittanceOwner, address beneficiary, uint amount);
-    event LogRemittanceBalanceUpdated(address remittanceOwner, address beneficiary, uint amount);
+    event LogRemittanceProcessStarted(address indexed remittanceOwner, address indexed beneficiary, 
+                         uint deadlineInSeconds,  bytes32 passwordHash, uint amountReceived);
+    event LogTransferred(address beneficiary, uint amount);
     
     //Constructor
     function Remittance(uint _deadlineLimitInSeconds) {
@@ -46,8 +44,8 @@ contract Remittance {
     {
         //if deadline is greater than the deadlimit, if msg.value is zero,
         //if beneficiary address is zero and if password was already used in the past, revert
-        if(now+deadlineInSeconds > now+deadlineLIMITInSeconds
-             || msg.value == 0 || beneficiary==0 || passwordsUsed[passwordHash]!=0 ) {
+        if(deadlineInSeconds > deadlineLIMITInSeconds
+             || msg.value == 0 || beneficiary==0 || passwordsAlreadyUsed[passwordHash]==true ) {
             revert();
         }
         
@@ -56,6 +54,8 @@ contract Remittance {
         newRemittance.remittanceBallance = msg.value;
         newRemittance.beneficiary = beneficiary;
         newRemittance.passwordHash = passwordHash;
+        
+        passwordsAlreadyUsed[passwordHash] = true;
         
         //if it is a new remittance, create a new index. otherwise, keep the last index
         if(RemittanceMapping[msg.sender].beneficiary==0){
@@ -67,8 +67,7 @@ contract Remittance {
         
         RemittanceMapping[msg.sender] = newRemittance;
         
-        LogRemittanceBalanceUpdated(msg.sender, beneficiary , msg.value);
-        LogBeginRemittance(msg.sender , newRemittance.beneficiary, newRemittance.deadline, 
+        LogRemittanceProcessStarted(msg.sender , newRemittance.beneficiary, newRemittance.deadline, 
                             newRemittance.passwordHash, newRemittance.remittanceBallance);
         
         return true;
@@ -90,34 +89,27 @@ contract Remittance {
             revert();
         }
         
-        //check password of user 1 and user 2. they are sent in plain text because 
-        //I couldn´t find how to send it encrypted
         bytes32 passwordSent = keccak256(secretWordHash1, secretWordHash2);
         bytes32 passwordStored = RemittanceMapping[remittanceOwner].passwordHash;
         
-        //is is not working. But I deployed the contract to proof of fire so I can move mon 
-        //with Module 5. I will come back here after inputs of the review
+        //if password sent doesn´t match, stop
         if(passwordStored != passwordSent){
-            //return false;
+            revert();
         }
-        
-        //check for password, if ok, transfer ether to beneficiary
-        if(true){
+        else{
             uint amount = RemittanceMapping[remittanceOwner].remittanceBallance;
 
-            //msg.sender is the beneficary and it was checked in the first line
+            //msg.sender is the beneficary and it was checked in the first line of this function
             RemittanceMapping[remittanceOwner].remittanceBallance = 0;
             RemittanceMapping[remittanceOwner].beneficiary.transfer(amount);
-            
-            //RemittanceMapping[remittanceOwner].beneficiary == msg.sender
-            LogTransfer(RemittanceMapping[remittanceOwner].beneficiary, amount);
-            LogRemittanceBalanceUpdated(remittanceOwner, RemittanceMapping[remittanceOwner].beneficiary, 0);
+        
+            LogTransferred(RemittanceMapping[remittanceOwner].beneficiary, amount);
         }
         
         return true;
     }
     
-    ///if it is after deadline, remittance owner can claim back its ether
+    ///if it is after deadline, remittance owner can claim back its Ether
     function claimUnchallengedEther() returns(bool success){
         //only owner of the remittance can call this function
         if(RemittanceMapping[msg.sender].beneficiary==0){
@@ -136,40 +128,21 @@ contract Remittance {
         
         uint amount = RemittanceMapping[msg.sender].remittanceBallance;
         RemittanceMapping[msg.sender].remittanceBallance = 0;
+        
         msg.sender.transfer(amount);
         
-        LogRemittanceBalanceUpdated(msg.sender, RemittanceMapping[msg.sender].beneficiary,0);
-        LogTransfer(msg.sender, amount);
+        LogTransferred(msg.sender, amount);
         
         return true;
-
     }
     
-    //It will log beneficiary and amount that was not claimed, kill the contract and return all remain funds to the 
-    //contract owner
+    //kill the contract and return all remain funds to the contract owner
     function killMe() returns (bool success) {
         require(msg.sender == owner);
-        
-        //I was adiviced not to transfer in a loop. But I am going to log
-        //all users and balances so I could transfer to them in future 
-        //if any issue arises.
-        for (uint i = 0; i < remittanceOwners.length; i++) {
-            address addrressToReturnFunds = remittanceOwners[i];
-            uint amount = RemittanceMapping[addrressToReturnFunds].remittanceBallance;
-            
-            if(amount!=0){
-                RemittanceMapping[addrressToReturnFunds].remittanceBallance = 0;
-                
-                LogRemittanceBalanceUpdated(addrressToReturnFunds, RemittanceMapping[addrressToReturnFunds].beneficiary,0);
-                LogFundsUnclaimed(addrressToReturnFunds, RemittanceMapping[addrressToReturnFunds].beneficiary, amount);
-            }
-            
-        }
-    
         suicide(owner);
         return true;
     }
     
-    function () payable {
+    function () {
     }
 }
