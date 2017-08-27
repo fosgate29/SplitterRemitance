@@ -53,15 +53,12 @@ contract Splitter {
     function withdrawFunds() public returns(bool success) { 
         uint amountToTransfer = balances[msg.sender];
         
-        if(amountToTransfer>0){
-            balances[ msg.sender] = 0;
-            msg.sender.transfer(amountToTransfer);
+        require(amountToTransfer>0);  //thanks @nikhilwins
+        
+        balances[ msg.sender] = 0;
+        msg.sender.transfer(amountToTransfer);
             
-            LogTransferred(msg.sender, amountToTransfer);
-        }
-        else{
-            LogTransferred(msg.sender, 0);
-        }
+        LogTransferred(msg.sender, amountToTransfer);
         
         return true;
     }
