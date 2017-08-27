@@ -11,8 +11,9 @@ contract Splitter {
     //states
     address public owner;
     
-    event LogTransfer(address receiver, uint amount);
-    event LogBalanceUpdated(address user, uint amount);
+    event LogTransferred(address indexed receiver, uint amount);
+    event LogSplitterCreated(address indexed msgSender, address indexed user1, address indexed user2, 
+                              uint half , uint  remainder);
     
     mapping(address => uint) balances;
     
@@ -35,26 +36,15 @@ contract Splitter {
         //checking address not equal to zero to make sure balances mapping has no address equal to zero
         if(address1 == 0 || address2 == 0 ) revert();
         
-        //feedback asked me about odd numbers. But I don´t see a problem here.
-        //if it is a 1 wei, amountSplitted will be zero and 1 wei stays with the contract.
-        uint amountSplitted = msg.value / 2; 
+        balances[address1] =  msg.value / 2;
+        balances[address2] =  msg.value / 2;
         
-        uint amountAddress1 = amountSplitted;
-        uint amountAddress2 = amountSplitted;
-        
-        if(balances[address1] > 0 ){
-            amountAddress1 += balances[address1];
+        //msg sender gets 1 wei if it is an odd number
+        if(msg.value % 2 == 1){
+            balances[msg.sender] = 1;
         }
         
-        if(balances[address2] > 0 ){
-            amountAddress2 += balances[address2];
-        }
-        
-        balances[address1] = amountAddress1;
-        balances[address2] = amountAddress2;
-        
-        LogBalanceUpdated(address1 , amountAddress1);
-        LogBalanceUpdated(address2 , amountAddress2);
+        LogSplitterCreated(msg.sender, address1, address2,  msg.value / 2 , msg.value % 2);
         
         return true;
     }
@@ -67,8 +57,10 @@ contract Splitter {
             balances[ msg.sender] = 0;
             msg.sender.transfer(amountToTransfer);
             
-            LogBalanceUpdated(msg.sender, 0);
-            LogTransfer(msg.sender, amountToTransfer);
+            LogTransferred(msg.sender, amountToTransfer);
+        }
+        else{
+            LogTransferred(msg.sender, 0);
         }
         
         return true;
@@ -83,18 +75,7 @@ contract Splitter {
         
         suicide(owner);
         
-        LogTransfer(msg.sender, amount);
-        
-        return true;
-    }
-    
-    //Owner transfer contract funds to him
-    function claimContractFunds() public returns ( bool success) {
-        require(msg.sender == owner);
-        if(this.balance > 0 ){
-            msg.sender.transfer(this.balance);
-            LogTransfer(msg.sender, this.balance);
-        }
+        LogTransferred(msg.sender, amount);
         
         return true;
     }
