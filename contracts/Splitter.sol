@@ -15,7 +15,7 @@ contract Splitter {
     event LogSplitterCreated(address indexed msgSender, address indexed user1, address indexed user2, 
                               uint half , uint  remainder);
     
-    mapping(address => uint) balances;
+    mapping(address => uint) public balances;
     
     //Constructor
     function Splitter() {
