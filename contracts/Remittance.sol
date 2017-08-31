@@ -10,24 +10,23 @@ contract Remittance {
     
     //states
     address public owner;
-    uint public deadlineLIMITInSeconds;
-    address[] private remittanceOwners;
+    uint public deadlineLIMITInSeconds;  //remittance max period of time. after that, owner can claim funds
     
-    struct RemittanceStruct {
+    struct RemittanceStruct { 
+        address remittanceOwner;  //who starts the remittance
 	    uint deadline;  //deadline must be less then now to allow Alice claim Ether 
 	    uint remittanceBallance;     //value Alice will receive from Carol
-	    uint remittanceOwnersIndex;
-	    bytes32 passwordHash;
 	    address beneficiary;  //Alice address. 
     }
     
-    mapping (address => RemittanceStruct) public RemittanceMapping;
-    mapping (bytes32 => bool) private passwordsAlreadyUsed;
+    //key is passwordHash
+    mapping (bytes32 => RemittanceStruct) public RemittanceMapping;
     
     //Log events
-    event LogRemittanceProcessStarted(address indexed remittanceOwner, address indexed beneficiary, 
-                         uint deadlineInSeconds,  bytes32 passwordHash, uint amountReceived);
+    event LogRemittanceProcessStarted(address  remittanceOwner, address  beneficiary, 
+                         uint deadlineInSeconds,  bytes32  passwordHash, uint amountReceived);
     event LogTransferred(address beneficiary, uint amount);
+     event logs(bool beneficiary, bool amount, bytes32 asdf);
     
     //Constructor
     function Remittance(uint _deadlineLimitInSeconds) {
@@ -36,6 +35,7 @@ contract Remittance {
     }
     
     //Start a remittance process
+    //passwordHash is remittance id
     function beginRemittanceProcess(address beneficiary, uint deadlineInSeconds,
                                     bytes32 passwordHash) 
         public
@@ -45,89 +45,64 @@ contract Remittance {
         //if deadline is greater than the deadlimit, if msg.value is zero,
         //if beneficiary address is zero and if password was already used in the past, revert
         if(deadlineInSeconds > deadlineLIMITInSeconds
-             || msg.value == 0 || beneficiary==0 || passwordsAlreadyUsed[passwordHash]==true ) {
+             || msg.value == 0 || beneficiary==0 
+             || RemittanceMapping[passwordHash].deadline > 0 ) {
             revert();
-        }
+        } 
         
         RemittanceStruct memory newRemittance;
+        newRemittance.remittanceOwner = msg.sender; 
         newRemittance.deadline = now + deadlineInSeconds;
         newRemittance.remittanceBallance = msg.value;
         newRemittance.beneficiary = beneficiary;
-        newRemittance.passwordHash = passwordHash;
         
-        passwordsAlreadyUsed[passwordHash] = true;
-        
-        //if it is a new remittance, create a new index. otherwise, keep the last index
-        if(RemittanceMapping[msg.sender].beneficiary==0){
-            newRemittance.remittanceOwnersIndex = remittanceOwners.push(msg.sender)-1;
-        }
-        else{
-            //do nothing, remittanceOwnersIndex is already populated with the correct index
-        }
-        
-        RemittanceMapping[msg.sender] = newRemittance;
-        
+        RemittanceMapping[passwordHash] = newRemittance;
+
+                            
         LogRemittanceProcessStarted(msg.sender , newRemittance.beneficiary, newRemittance.deadline, 
-                            newRemittance.passwordHash, newRemittance.remittanceBallance);
+                            passwordHash, newRemittance.remittanceBallance);
         
         return true;
     }
     
     //beneficary will call this function to receive ethers
-    function releaseRemittance(address remittanceOwner, bytes32 secretWordHash1, 
-                                bytes32 secretWordHash2) 
+    function releaseRemittance(bytes32 secretWordHash1 ,bytes32 secretWordHash2) 
         public
-        returns(bool success){
-        
-        //only beneficiary can call this function
-        if(RemittanceMapping[remittanceOwner].beneficiary!=msg.sender){
-            revert();
-        }
-        
-        //if theresn´t funds, stop
-        if(RemittanceMapping[remittanceOwner].remittanceBallance==0){
-            revert();
-        }
+        returns(bool success)
+    {
         
         bytes32 passwordSent = keccak256(secretWordHash1, secretWordHash2);
-        bytes32 passwordStored = RemittanceMapping[remittanceOwner].passwordHash;
-        
-        //if password sent doesn´t match, stop
-        if(passwordStored != passwordSent){
-            revert();
-        }
-        else{
-            uint amount = RemittanceMapping[remittanceOwner].remittanceBallance;
 
-            //msg.sender is the beneficary and it was checked in the first line of this function
-            RemittanceMapping[remittanceOwner].remittanceBallance = 0;
-            RemittanceMapping[remittanceOwner].beneficiary.transfer(amount);
+        //only beneficiary can call this function and it should have funds
+        require(RemittanceMapping[passwordSent].beneficiary == msg.sender);
+        require(RemittanceMapping[passwordSent].remittanceBallance > 0);
         
-            LogTransferred(RemittanceMapping[remittanceOwner].beneficiary, amount);
-        }
+        uint amount = RemittanceMapping[passwordSent].remittanceBallance;
+
+        //msg.sender is the beneficary and it was checked in the first line of this function
+        RemittanceMapping[passwordSent].remittanceBallance = 0;
+        
+        RemittanceMapping[passwordSent].beneficiary.transfer(amount);
+        
+        LogTransferred(RemittanceMapping[passwordSent].beneficiary, amount);
         
         return true;
     }
     
     ///if it is after deadline, remittance owner can claim back its Ether
-    function claimUnchallengedEther() returns(bool success){
+    function claimUnchallengedEther(bytes32 passwordHash) 
+        public
+        returns(bool success)
+    {
+        
         //only owner of the remittance can call this function
-        if(RemittanceMapping[msg.sender].beneficiary==0){
-            revert();
-        }
+        //it should exist and it should have funds and it should have been beyond deadline
+        require(RemittanceMapping[passwordHash].deadline < now);
+        require(RemittanceMapping[passwordHash].remittanceBallance > 0);
+        require(RemittanceMapping[passwordHash].remittanceOwner == msg.sender);
         
-        //check amount. user can claim if ether is greater than zero
-        if(RemittanceMapping[msg.sender].remittanceBallance == 0){
-            revert();
-        }
-        
-        //check deadline
-        if(RemittanceMapping[msg.sender].deadline >= now){
-            revert();
-        }
-        
-        uint amount = RemittanceMapping[msg.sender].remittanceBallance;
-        RemittanceMapping[msg.sender].remittanceBallance = 0;
+        uint amount = RemittanceMapping[passwordHash].remittanceBallance;
+        RemittanceMapping[passwordHash].remittanceBallance = 0;
         
         msg.sender.transfer(amount);
         
@@ -137,9 +112,16 @@ contract Remittance {
     }
     
     //kill the contract and return all remain funds to the contract owner
-    function killMe() returns (bool success) {
+    function killMe() 
+        public
+        returns (bool success)
+    {
         require(msg.sender == owner);
-        suicide(owner);
+        uint amount = this.balance;
+        
+        selfdestruct(owner);
+        
+        LogTransferred(msg.sender, amount);
         return true;
     }
     
