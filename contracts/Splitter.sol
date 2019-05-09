@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.5.0;
 
 
 /**
@@ -9,7 +9,7 @@ pragma solidity ^0.4.11;
 contract Splitter {
     
     //states
-    address public owner;
+    address payable public owner;
     
     event LogTransferred(address indexed receiver, uint amount);
     event LogSplitterCreated(address indexed msgSender, address indexed user1, address indexed user2, 
@@ -18,14 +18,14 @@ contract Splitter {
     mapping(address => uint) public balances;
     
     //Constructor
-    function Splitter() {
+    constructor() public {
         owner = msg.sender;
     }
     
     //split the value received between two users and update their balance
     function split(address address1, address address2) payable public returns(bool success) {
         //checking address not equal to zero to make sure balances mapping has no address equal to zero
-        if(address1 == 0 || address2 == 0 ) revert();
+        require(address1 != address(0) && address2 != address(0) , 'Invalid addres for address1 or address2');
         
         balances[address1] +=  msg.value / 2;
         balances[address2] +=  msg.value / 2;
@@ -35,7 +35,7 @@ contract Splitter {
             balances[msg.sender] += 1;
         }
         
-        LogSplitterCreated(msg.sender, address1, address2,  msg.value / 2 , msg.value % 2);
+        emit LogSplitterCreated(msg.sender, address1, address2,  msg.value / 2 , msg.value % 2);
         
         return true;
     }
@@ -44,12 +44,12 @@ contract Splitter {
     function withdrawFunds() public returns(bool success) { 
         uint amountToTransfer = balances[msg.sender];
         
-        require(amountToTransfer>0);  //thanks @nikhilwins
+        require(amountToTransfer>0, 'Amount to transfer must be greater than zero');  //thanks @nikhilwins
         
         balances[ msg.sender] = 0;
         msg.sender.transfer(amountToTransfer);
             
-        LogTransferred(msg.sender, amountToTransfer);
+        emit LogTransferred(msg.sender, amountToTransfer);
         
         return true;
     }
@@ -57,18 +57,14 @@ contract Splitter {
     //It will kill the contract and return all remain funds to the 
     //contract owner
     function killMe() public returns ( bool success) {
-        require(msg.sender == owner);
+        require(msg.sender == owner, 'Sender must be the owner');
         
-        uint amount = this.balance;
+        uint amount = address(this).balance;
         
-        suicide(owner);
+        selfdestruct(owner);
         
-        LogTransferred(msg.sender, amount);
+        emit LogTransferred(msg.sender, amount);
         
         return true;
-    }
-
-    //fallback is not payable, so contract can´t receive funds
-    function () {
     }
 }

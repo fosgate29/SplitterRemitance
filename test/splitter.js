@@ -71,17 +71,18 @@ var expectedExceptionPromise = function (action, gasToUse) {
 
 contract('Splitter', function(accounts) {
   
-  var contract;
+  let contract;
 
-  var owner = accounts[0];
-  var alice = accounts[1];  
+  const owner = accounts[0];
+  const alice = accounts[1];  
 
-  var contribution = web3.toWei(1, 'ether');
+  const contribution = web3.utils.toWei('1', 'ether');
   
-  var bob   = accounts[2];   
-  var carol = accounts[3];
+  const bob   = accounts[2];   
+  const carol = accounts[3];
 
-  var someUser = accounts[4]; var contributionSomeUser = 10;
+  const someUser = accounts[4];
+  const contributionSomeUser = 10;
 
   beforeEach(function() {
     return Splitter.new({from:owner})
@@ -113,7 +114,7 @@ contract('Splitter', function(accounts) {
 
   it("should not be possible to start a split with a 0 value", function() {
     return expectedExceptionPromise(function () {
-      return contract.split.call(carol,bob ,{ from: owner, value: 0, gas: 3000000 });     
+      return contract.split.call(carol,bob ,{ from: owner, value: 0 });     
         },
         3000000);
   });
@@ -155,10 +156,10 @@ contract('Splitter', function(accounts) {
     });
   });
 
-  it("should be possible to Bob to withdraw his funds", function() {    
+  it.only("should be possible to Bob to withdraw his funds", function() {    
     var bobSplitBalance = 0;
-    var bobInitialBalance = web3.eth.getBalance(bob).toNumber();
-    var valueToTest = web3.toWei(2, 'ether');
+    var bobInitialBalance = web3.eth.getBalance(bob);
+    var valueToTest = web3.utils.toWei('2', 'ether');
     contract.balances(bob)
       .then(function(_bobInitialContractBalance){
         assert.strictEqual(_bobInitialContractBalance.toNumber(), 0 , "Bob initial balance inside Splitter contract is not zero.");

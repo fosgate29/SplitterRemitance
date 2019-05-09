@@ -1,4 +1,4 @@
-pragma solidity ^0.4.11;
+pragma solidity ^0.5.0;
 
 
 /**
@@ -9,14 +9,14 @@ pragma solidity ^0.4.11;
 contract Remittance {
     
     //states
-    address public owner;
+    address payable public owner;
     uint public deadlineLIMITInSeconds;  //remittance max period of time. after that, owner can claim funds
     
     struct RemittanceStruct { 
         address remittanceOwner;  //who starts the remittance
 	    uint deadline;  //deadline must be less then now to allow Alice claim Ether 
 	    uint remittanceBallance;     //value Alice will receive from Carol
-	    address beneficiary;  //Alice address. 
+	    address payable beneficiary;  //Alice address. 
     }
     
     //key is passwordHash
@@ -26,17 +26,17 @@ contract Remittance {
     event LogRemittanceProcessStarted(address  remittanceOwner, address  beneficiary, 
                          uint deadlineInSeconds,  bytes32  passwordHash, uint amountReceived);
     event LogTransferred(address beneficiary, uint amount);
-     event logs(bool beneficiary, bool amount, bytes32 asdf);
+    event logs(bool beneficiary, bool amount, bytes32 asdf);
     
     //Constructor
-    function Remittance(uint _deadlineLimitInSeconds) {
+    constructor(uint _deadlineLimitInSeconds) public {
         owner = msg.sender;
         deadlineLIMITInSeconds = _deadlineLimitInSeconds;
     }
     
     //Start a remittance process
     //passwordHash is remittance id
-    function beginRemittanceProcess(address beneficiary, uint deadlineInSeconds,
+    function beginRemittanceProcess(address payable beneficiary, uint deadlineInSeconds,
                                     bytes32 passwordHash) 
         public
         payable  
@@ -45,7 +45,7 @@ contract Remittance {
         //if deadline is greater than the deadlimit, if msg.value is zero,
         //if beneficiary address is zero and if password was already used in the past, revert
         if(deadlineInSeconds > deadlineLIMITInSeconds
-             || msg.value == 0 || beneficiary==0 
+             || msg.value == 0 || beneficiary == address(0)
              || RemittanceMapping[passwordHash].deadline > 0 ) {
             revert();
         } 
@@ -59,7 +59,7 @@ contract Remittance {
         RemittanceMapping[passwordHash] = newRemittance;
 
                             
-        LogRemittanceProcessStarted(msg.sender , newRemittance.beneficiary, newRemittance.deadline, 
+        emit LogRemittanceProcessStarted(msg.sender , newRemittance.beneficiary, newRemittance.deadline, 
                             passwordHash, newRemittance.remittanceBallance);
         
         return true;
@@ -71,7 +71,7 @@ contract Remittance {
         returns(bool success)
     {
         
-        bytes32 passwordSent = keccak256(secretWordHash1, secretWordHash2);
+        bytes32 passwordSent = keccak256(abi.encodePacked(secretWordHash1, secretWordHash2));
 
         //only beneficiary can call this function and it should have funds
         require(RemittanceMapping[passwordSent].beneficiary == msg.sender);
@@ -84,7 +84,7 @@ contract Remittance {
         
         RemittanceMapping[passwordSent].beneficiary.transfer(amount);
         
-        LogTransferred(RemittanceMapping[passwordSent].beneficiary, amount);
+        emit LogTransferred(RemittanceMapping[passwordSent].beneficiary, amount);
         
         return true;
     }
@@ -106,7 +106,7 @@ contract Remittance {
         
         msg.sender.transfer(amount);
         
-        LogTransferred(msg.sender, amount);
+        emit LogTransferred(msg.sender, amount);
         
         return true;
     }
@@ -117,14 +117,11 @@ contract Remittance {
         returns (bool success)
     {
         require(msg.sender == owner);
-        uint amount = this.balance;
+        uint amount = address(this).balance;
         
         selfdestruct(owner);
         
-        LogTransferred(msg.sender, amount);
+        emit LogTransferred(msg.sender, amount);
         return true;
-    }
-    
-    function () {
     }
 }
