@@ -156,31 +156,42 @@ contract('Splitter', function(accounts) {
     });
   });
 
-  it.only("should be possible to Bob to withdraw his funds", function() {    
-    var bobSplitBalance = 0;
-    var bobInitialBalance = web3.eth.getBalance(bob);
-    var valueToTest = web3.utils.toWei('2', 'ether');
-    contract.balances(bob)
+  it("should be possible to Bob to withdraw his funds", function() {    
+    const valueToTest = new web3.utils.toBN("20000000000000000000");
+
+    let bobInitialBalance;
+    let bobEndBalance;
+    web3.eth.getBalance(bob).then(function(__bobInitialBalance){
+      bobInitialBalance = web3.utils.toBN(__bobInitialBalance);
+      return contract.balances(bob)
       .then(function(_bobInitialContractBalance){
         assert.strictEqual(_bobInitialContractBalance.toNumber(), 0 , "Bob initial balance inside Splitter contract is not zero.");
         return contract.split.sendTransaction(bob, carol, { from: owner , to:contract.address, value:valueToTest })
       .then(function(txHash){
           return contract.balances(bob)
         .then(function(_bobContractBalanceAfterSplit){
-          assert.strictEqual(_bobContractBalanceAfterSplit.toNumber(), valueToTest / 2, "Bob balance after split is wrong.");
+          assert.isTrue(_bobContractBalanceAfterSplit.eq(valueToTest.div(new web3.utils.BN(2))), "Bob balance after split is wrong.");
           return contract.withdrawFunds.sendTransaction( { from: bob} )
         })          
         .then(function(txHash2){
           return contract.balances(bob)
         })
-        .then(function(_bobSplitBalance){
-          bobSplitBalance = _bobSplitBalance.toNumber();
-          var bobEndBalance = web3.eth.getBalance(bob).toNumber();
-          assert.strictEqual(bobSplitBalance, 0 , "Bob balance inside Splitter contract is wrong.");
-          assert.isAbove(bobEndBalance, bobInitialBalance , "Bob balance in the blockchain is wrong. ");
-        })    
+         .then(function(_bobSplitBalance){
+          assert.strictEqual(_bobSplitBalance.toNumber(), 0 , "Bob balance inside Splitter contract is wrong.");
+          return web3.eth.getBalance(bob)
+        })
+          .then(function(__bobEndBalance){
+            bobEndBalance = web3.utils.toBN(__bobEndBalance);
+            console.log(bobEndBalance.toString());
+            console.log(bobInitialBalance.toString())
+            assert.isTrue(bobEndBalance.gt(bobInitialBalance) , "Bob balance in the blockchain is wrong. ");
+          })    
+        });
       });
     });
   });
+
+  99999583220000000000
+  100000000000000000000
 
 });
