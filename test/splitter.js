@@ -1,3 +1,6 @@
+const { constants, expectEvent } = require('openzeppelin-test-helpers');
+const { ZERO_ADDRESS } = constants;
+
 var Splitter = artifacts.require("./Splitter.sol");
 
 // Found here https://gist.github.com/xavierlepretre/88682e871f4ad07be4534ae560692ee6
@@ -84,6 +87,8 @@ contract('Splitter', function(accounts) {
   const someUser = accounts[4];
   const contributionSomeUser = 10;
 
+  const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
   beforeEach(function() {
     return Splitter.new({from:owner})
     .then(function(instance) {
@@ -107,7 +112,7 @@ contract('Splitter', function(accounts) {
 
   it.only("should not be possible to start a split with a 0 address", function() {
     return expectedExceptionPromise(function () {
-      return contract.split.call(0,bob ,{ from: owner, value: 9, gas: 3000000 });     
+      return contract.split.call(ZERO_ADDRESS,bob ,{ from: owner, value: 9, gas: 3000000 });     
         },
         3000000);
   });
