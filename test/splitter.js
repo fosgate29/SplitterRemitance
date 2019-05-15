@@ -105,7 +105,7 @@ contract('Splitter', function(accounts) {
       });
   });
 
-  it("should not be possible to start a split with a 0 address", function() {
+  it.only("should not be possible to start a split with a 0 address", function() {
     return expectedExceptionPromise(function () {
       return contract.split.call(0,bob ,{ from: owner, value: 9, gas: 3000000 });     
         },

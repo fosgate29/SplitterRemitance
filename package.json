@@ -1,0 +1,17 @@
+{
+  "name": "splitterremitance",
+  "version": "1.0.0",
+  "description": "Small project to PoC",
+  "scripts": {
+    "test": "truffle test"
+  },
+  "keywords": [
+    "solidity"
+  ],
+  "author": "Luiz Soares",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^5.16.0",
+    "eslint-plugin-react": "^7.13.0"
+  }
+}
