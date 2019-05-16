@@ -1,80 +1,12 @@
 const { constants, expectEvent } = require('openzeppelin-test-helpers');
 const { ZERO_ADDRESS } = constants;
 
-var Splitter = artifacts.require("./Splitter.sol");
+const Splitter = artifacts.require("./Splitter.sol");
 
-// Found here https://gist.github.com/xavierlepretre/88682e871f4ad07be4534ae560692ee6
-web3.eth.getTransactionReceiptMined = function (txnHash, interval) {
-  var transactionReceiptAsync;
-  interval = interval ? interval : 500;
-  transactionReceiptAsync = function(txnHash, resolve, reject) {
-    try {
-      var receipt = web3.eth.getTransactionReceipt(txnHash);
-      if (receipt == null) {
-        setTimeout(function () {
-          transactionReceiptAsync(txnHash, resolve, reject);
-        }, interval);
-      } else {
-        resolve(receipt);
-      }
-    } catch(e) {
-      reject(e);
-    }
-  };
+const Promise = require("bluebird");
+const { shouldFail } = require("openzeppelin-test-helpers");
 
-  return new Promise(function (resolve, reject) {
-      transactionReceiptAsync(txnHash, resolve, reject);
-  });
-};
-
-// Found here https://gist.github.com/xavierlepretre/afab5a6ca65e0c52eaf902b50b807401
-var getEventsPromise = function (myFilter, count) {
-  return new Promise(function (resolve, reject) {
-    count = count ? count : 1;
-    var results = [];
-    myFilter.watch(function (error, result) {
-      if (error) {
-        reject(error);
-      } else {
-        count--;
-        results.push(result);
-      }
-      if (count <= 0) {
-        resolve(results);
-        myFilter.stopWatching();
-      }
-    });
-  });
-};
-
-// Found here https://gist.github.com/xavierlepretre/d5583222fde52ddfbc58b7cfa0d2d0a9
-const expectedExceptionPromise = function (action, gasToUse) {
-  return new Promise(function (resolve, reject) {
-      try {
-        resolve(action());
-      } catch(e) {
-        reject(e);
-      }
-    })
-    .then(function (txn) {
-      return web3.eth.getTransactionReceiptMined(txn);
-    })
-    .then(function (receipt) {
-      // We are in Geth
-      console.log(receipt)
-      assert.equal(receipt.gasUsed, gasToUse, "should have used all the gas");
-    })
-    .catch(function (e) {
-      if ((e + "").indexOf("invalid opcode") > -1) {
-        // We are in TestRPC
-      } else if ((e + "").indexOf("revert") > -1) {
-        // We are in TestRPC
-      } 
-      else {
-        throw e;
-      }
-    });
-};
+web3.eth = Promise.promisifyAll(web3.eth);
 
 contract('Splitter', function(accounts) {
   
@@ -90,107 +22,74 @@ contract('Splitter', function(accounts) {
 
   const someUser = accounts[4];
 
-  beforeEach(function() {
-    return Splitter.new({from:owner})
-    .then(function(instance) {
-      contract = instance;
-    })
+  beforeEach(async () => {
+    contract = await Splitter.new({from:owner})
   });
 
-  it("should be owned by owner", function(){
-    return contract.owner({from:owner})
-    .then(function(_owner){
-      assert.strictEqual(_owner, owner, "Contract is not owned by owner");
-      });
+  it("should be owned by owner", async () => {
+    const _owner = await contract.owner({from:owner})
+    assert.strictEqual(_owner, owner, "Contract is not owned by owner");
   });
 
-  it("should be possible to start a split", function() {
-    return contract.split.call(bob, carol, { from: owner , to:contract.address, value:contribution })
-      .then(function(successful) {
-        assert.isTrue(successful, "Split didnt start with success");        
-      });
+  it("should be possible to start a split", async () => {
+    const successful = await  contract.split.call(bob, carol, { from: owner , to:contract.address, value:contribution })
+    assert.isTrue(successful, "Split didnt start with success");        
   });
 
-  it("should not be possible to start a split with a 0 address", function() {
-    return expectedExceptionPromise(function () {
-      return contract.split.call(ZERO_ADDRESS,carol ,{ from: owner, value: 9 });     
-        },
-        3000000);
+  it("should not be possible to start a split with a 0 address", async () => {
+    await shouldFail.reverting(contract.split.call(ZERO_ADDRESS,carol ,{ from: owner, value: 9 }));
   });
 
-  it("should not be possible to start a split with a 0 value", function() {
-    return expectedExceptionPromise(function () {
-      return contract.split.call(carol,bob ,{ from: owner, value: 0 });     
-        },
-        3000000);
+  it("should not be possible to start a split with a 0 value", async () => {
+    await shouldFail.reverting(contract.split(carol,bob ,{ from: owner, value: 0 }));    
   });
 
-  it("should not be possible to kill the contract if it is not the owner", function() {
-    return expectedExceptionPromise(function () {
-      return contract.killMe.call({ from: bob });     
-        },
-        3000000);
+  it("should not be possible to kill the contract if it is not the owner", async () => {
+    await shouldFail.reverting(contract.killMe({ from: bob }));
   });
 
-  it("should not be possible to withdraw funds if user balance is 0", function() {
-    return expectedExceptionPromise(function () {
-      return contract.withdrawFunds.call({ from: someUser });     
-        },
-        3000000);
+  it("should not be possible to withdraw funds if user balance is 0", async () => {
+    await shouldFail.reverting(contract.withdrawFunds({ from: someUser }));
   });
 
-
-  it("should be possible to start a split with value = 10 and bob and carol gets half (5) each one", function() {
+  it("should be possible to start a split with value = 10 and bob and carol gets half (5) each one", async () => {
     const expectedValue = contribution.div(new web3.utils.BN(2));
     let bobBalance = 0;
     let carolBalance = 0;
-    contract.split(carol, bob, { from: owner , to:contract.address, value:contribution })
-    .then(function(txHash){
-        return contract.balances(bob)
-      .then(function(_bobBalance){
-        bobBalance = _bobBalance;
-        return contract.balances(carol)
-      .then(function(_carolBalance){
-        carolBalance = _carolBalance;
-        const total = bobBalance.add(carolBalance);
-        assert.isTrue(bobBalance.eq(expectedValue) , "Bob didn't receive correct amount."); 
-        assert.isTrue(carolBalance.eq(expectedValue) , "Carol didn't receive correct amount.");
-        assert.isTrue(total.eq(contribution), "Total contribution is not correct.");
-        })
-      })
-    });
+    await contract.split(carol, bob, { from: owner , to:contract.address, value:contribution })
+    bobBalance = await contract.balances(bob);
+    carolBalance = await contract.balances(carol);
+
+    const total = bobBalance.add(carolBalance);
+    assert.isTrue(bobBalance.eq(expectedValue) , "Bob didn't receive correct amount."); 
+    assert.isTrue(carolBalance.eq(expectedValue) , "Carol didn't receive correct amount.");
+    assert.isTrue(total.eq(contribution), "Total contribution is not correct.");
   });
 
-  it("should be possible to Bob to withdraw his funds", function() {    
+  it("should be possible to Bob to withdraw his funds", async () => {  
     const valueToTest = new web3.utils.toBN("20000000000000000000");
 
-    let bobInitialBalance;
-    let bobEndBalance;
-    web3.eth.getBalance(bob).then(function(__bobInitialBalance){
-      bobInitialBalance = web3.utils.toBN(__bobInitialBalance);
-      return contract.balances(bob)
-      .then(function(_bobInitialContractBalance){
-        assert.strictEqual(_bobInitialContractBalance.toNumber(), 0 , "Bob initial balance inside Splitter contract is not zero.");
-        return contract.split.sendTransaction(bob, carol, { from: owner , to:contract.address, value:valueToTest })
-      .then(function(txHash){
-          return contract.balances(bob)
-        .then(function(_bobContractBalanceAfterSplit){
-          assert.isTrue(_bobContractBalanceAfterSplit.eq(valueToTest.div(new web3.utils.BN(2))), "Bob balance after split is wrong.");
-          return contract.withdrawFunds.sendTransaction( { from: bob} )
-        })          
-        .then(function(txHash2){
-          return contract.balances(bob)
-        })
-         .then(function(_bobSplitBalance){
-          assert.strictEqual(_bobSplitBalance.toNumber(), 0 , "Bob balance inside Splitter contract is wrong.");
-          return web3.eth.getBalance(bob)
-        })
-          .then(function(__bobEndBalance){
-            bobEndBalance = web3.utils.toBN(__bobEndBalance);
-            assert.isTrue(bobEndBalance.gt(bobInitialBalance) , "Bob balance in the blockchain is wrong. ");
-          })    
-        });
-      });
-    });
+    let bobInitialBalance = await web3.eth.getBalance(bob);
+    bobInitialBalance = new web3.utils.toBN(bobInitialBalance);
+    
+    const bobInitialContractBalance = await contract.balances(bob);
+    assert.strictEqual(bobInitialContractBalance.toNumber(), 0 , "Bob initial balance inside Splitter contract is not zero.");
+   
+    await contract.split(bob, carol, { from: owner , to:contract.address, value:valueToTest })
+    
+    const bobContractBalanceAfterSplit = await contract.balances(bob);
+
+    assert.isTrue(bobContractBalanceAfterSplit.eq(valueToTest.div(new web3.utils.BN(2))), "Bob balance after split is wrong.");
+    
+    await contract.withdrawFunds( { from: bob} );
+    let _bobSplitBalance = await contract.balances(bob);
+
+    assert.strictEqual(_bobSplitBalance.toNumber(), 0 , "Bob balance inside Splitter contract is wrong.");
+
+    let bobEndBalance = await web3.eth.getBalance(bob);
+    bobEndBalance = new web3.utils.toBN(bobEndBalance);
+
+    assert.isTrue(bobEndBalance.gt(bobInitialBalance) , "Bob balance in the blockchain is wrong. ");          
   });
+
 });

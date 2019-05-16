@@ -26,6 +26,7 @@ contract Splitter {
     function split(address address1, address address2) payable public returns(bool success) {
         //checking address not equal to zero to make sure balances mapping has no address equal to zero
         require(address1 != address(0) && address2 != address(0) , 'Invalid address for address1 or address2');
+        require(msg.value > 0 , 'Split must receive a value');
         
         balances[address1] +=  msg.value / 2;
         balances[address2] +=  msg.value / 2;
