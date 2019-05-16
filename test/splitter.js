@@ -48,7 +48,7 @@ var getEventsPromise = function (myFilter, count) {
 };
 
 // Found here https://gist.github.com/xavierlepretre/d5583222fde52ddfbc58b7cfa0d2d0a9
-var expectedExceptionPromise = function (action, gasToUse) {
+const expectedExceptionPromise = function (action, gasToUse) {
   return new Promise(function (resolve, reject) {
       try {
         resolve(action());
@@ -61,12 +61,16 @@ var expectedExceptionPromise = function (action, gasToUse) {
     })
     .then(function (receipt) {
       // We are in Geth
+      console.log(receipt)
       assert.equal(receipt.gasUsed, gasToUse, "should have used all the gas");
     })
     .catch(function (e) {
       if ((e + "").indexOf("invalid opcode") > -1) {
         // We are in TestRPC
-      } else {
+      } else if ((e + "").indexOf("revert") > -1) {
+        // We are in TestRPC
+      } 
+      else {
         throw e;
       }
     });
@@ -79,15 +83,12 @@ contract('Splitter', function(accounts) {
   const owner = accounts[0];
   const alice = accounts[1];  
 
-  const contribution = web3.utils.toWei('1', 'ether');
+  const contribution = web3.utils.toWei(web3.utils.toBN(1), 'ether');
   
   const bob   = accounts[2];   
   const carol = accounts[3];
 
   const someUser = accounts[4];
-  const contributionSomeUser = 10;
-
-  const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
   beforeEach(function() {
     return Splitter.new({from:owner})
@@ -110,9 +111,9 @@ contract('Splitter', function(accounts) {
       });
   });
 
-  it.only("should not be possible to start a split with a 0 address", function() {
+  it("should not be possible to start a split with a 0 address", function() {
     return expectedExceptionPromise(function () {
-      return contract.split.call(ZERO_ADDRESS,bob ,{ from: owner, value: 9, gas: 3000000 });     
+      return contract.split.call(ZERO_ADDRESS,carol ,{ from: owner, value: 9 });     
         },
         3000000);
   });
@@ -140,24 +141,23 @@ contract('Splitter', function(accounts) {
 
 
   it("should be possible to start a split with value = 10 and bob and carol gets half (5) each one", function() {
-    var expectedValue = contribution / 2;
-    var bobBalance = 0;
-    var carolBalance = 0;
-    contract.split.sendTransaction(bob, carol, { from: owner , to:contract.address, value:contribution })
+    const expectedValue = contribution.div(new web3.utils.BN(2));
+    let bobBalance = 0;
+    let carolBalance = 0;
+    contract.split(carol, bob, { from: owner , to:contract.address, value:contribution })
     .then(function(txHash){
         return contract.balances(bob)
       .then(function(_bobBalance){
         bobBalance = _bobBalance;
         return contract.balances(carol)
-      })
       .then(function(_carolBalance){
-        var total = bobBalance.plus(_carolBalance);
-        assert.strictEqual(bobBalance.toNumber(), expectedValue , "Bob didn't receive correct amount."); 
-        assert.strictEqual(_carolBalance.toNumber(), expectedValue , "Carol didn't receive correct amount.");
-        assert.strictEqual(total.toString(10), contribution , "Total contribution is not correct.");
-
+        carolBalance = _carolBalance;
+        const total = bobBalance.add(carolBalance);
+        assert.isTrue(bobBalance.eq(expectedValue) , "Bob didn't receive correct amount."); 
+        assert.isTrue(carolBalance.eq(expectedValue) , "Carol didn't receive correct amount.");
+        assert.isTrue(total.eq(contribution), "Total contribution is not correct.");
+        })
       })
-     
     });
   });
 
@@ -187,16 +187,10 @@ contract('Splitter', function(accounts) {
         })
           .then(function(__bobEndBalance){
             bobEndBalance = web3.utils.toBN(__bobEndBalance);
-            console.log(bobEndBalance.toString());
-            console.log(bobInitialBalance.toString())
             assert.isTrue(bobEndBalance.gt(bobInitialBalance) , "Bob balance in the blockchain is wrong. ");
           })    
         });
       });
     });
   });
-
-  99999583220000000000
-  100000000000000000000
-
 });
