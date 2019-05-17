@@ -1,12 +1,16 @@
 module.exports = {
     "env": {
         "browser": true,
-        "es6": true
+        "es6": true,
+        "node": true,
+        "mocha": true
     },
     "extends": "eslint:recommended",
     "globals": {
-        "Atomics": "readonly",
-        "SharedArrayBuffer": "readonly"
+        "artifacts": false,
+        "contract": false,
+        "assert": false,
+        "web3": false
     },
     "parserOptions": {
         "ecmaFeatures": {
@@ -21,3 +25,4 @@ module.exports = {
     "rules": {
     }
 };
+

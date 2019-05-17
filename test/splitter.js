@@ -1,4 +1,4 @@
-const { constants, expectEvent } = require('openzeppelin-test-helpers');
+const { constants } = require('openzeppelin-test-helpers');
 const { ZERO_ADDRESS } = constants;
 
 const Splitter = artifacts.require("./Splitter.sol");
@@ -13,7 +13,7 @@ contract('Splitter', function(accounts) {
   let contract;
 
   const owner = accounts[0];
-  const alice = accounts[1];  
+  //const alice = accounts[1];  
 
   const contribution = web3.utils.toWei(web3.utils.toBN(1), 'ether');
   
