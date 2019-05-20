@@ -12,8 +12,7 @@ contract('Splitter', function(accounts) {
   
   let contract;
 
-  const owner = accounts[0];
-  //const alice = accounts[1];  
+  const owner = accounts[0]; 
 
   const contribution = web3.utils.toWei(web3.utils.toBN(1), 'ether');
   
@@ -65,6 +64,28 @@ contract('Splitter', function(accounts) {
     assert.isTrue(carolBalance.eq(expectedValue) , "Carol didn't receive correct amount.");
     assert.isTrue(total.eq(contribution), "Total contribution is not correct.");
   });
+
+  it("should be possible to start a split with value = 11 and bob and carol gets half (5) each one and 1 remained is for the smart contract balance", async () => {
+    const contributionNormal = web3.utils.toWei(web3.utils.toBN(1), 'ether');
+
+    const contributionOdd = contributionNormal.add(web3.utils.toBN(1));
+
+
+    let bobBalance = 0;
+    let carolBalance = 0;
+    let spliterBalance = 0;
+    await contract.split(carol, bob, { from: owner , to:contract.address, value:contributionOdd })
+    
+    bobBalance = await contract.balances(bob);
+    carolBalance = await contract.balances(carol);
+    spliterBalance = await web3.eth.getBalance(contract.address);
+    spliterBalance = web3.utils.toBN(spliterBalance);
+
+    const total = bobBalance.add(carolBalance).add(web3.utils.toBN(1));
+
+    assert.isTrue(total.eq(contributionOdd), "Total contribution is not correct.");
+    assert.isTrue(total.eq(spliterBalance), "Total contribution is not equal to Splitter balance.");
+  });  
 
   it("should be possible to Bob to withdraw his funds", async () => {  
     const valueToTest = new web3.utils.toBN("20000000000000000000");

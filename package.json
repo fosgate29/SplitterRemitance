@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Small project to PoC",
   "scripts": {
-    "test": "truffle test"
+    "test": "truffle test",
+    "coverage": "./node_modules/.bin/solidity-coverage"
   },
   "keywords": [
     "solidity"
@@ -11,9 +12,11 @@
   "author": "Luiz Soares",
   "license": "MIT",
   "devDependencies": {
+    "coveralls": "^3.0.3",
     "eslint": "^5.16.0",
     "eslint-plugin-react": "^7.13.0",
-    "eth-gas-reporter": "^0.2.0"
+    "eth-gas-reporter": "^0.2.0",
+    "solidity-coverage": "^0.6.0-beta.5"
   },
   "dependencies": {
     "chai": "^4.2.0",

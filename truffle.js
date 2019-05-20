@@ -6,11 +6,11 @@ module.exports = {
       network_id: "*" // Match any network id
     }
   }*/
-  mocha: {
+  /*mocha: {
     reporter: 'eth-gas-reporter',
     reporterOptions : {
       currency: 'USD',
       gasPrice: 21
     }
-  }
+  }*/
 };
