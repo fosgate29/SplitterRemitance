@@ -1,2 +1,10 @@
 build
+
+# Dependency directories
 node_modules
+
+# solidity coverage Output
+coverage
+coverage.json
+
+package-lock.json
