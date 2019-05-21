@@ -57,15 +57,13 @@ contract Splitter {
     
     //It will kill the contract and return all remain funds to the 
     //contract owner
-    function killMe() public returns ( bool success) {
+    function killMe() public {
         require(msg.sender == owner, 'Sender must be the owner');
         
         uint amount = address(this).balance;
         
-        selfdestruct(owner);
-        
         emit LogTransferred(msg.sender, amount);
-        
-        return true;
+
+        selfdestruct(owner);
     }
 }
