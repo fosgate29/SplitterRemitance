@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "chai": "^4.2.0",
+    "ethlint": "^1.2.4",
     "openzeppelin-test-helpers": "^0.3.2"
   }
 }
