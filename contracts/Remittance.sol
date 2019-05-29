@@ -30,6 +30,7 @@ contract Remittance {
     
     //Constructor
     constructor(uint _deadlineLimitInSeconds) public {
+
         owner = msg.sender;
         deadlineLIMITInSeconds = _deadlineLimitInSeconds;
     }
@@ -44,11 +45,9 @@ contract Remittance {
     {
         //if deadline is greater than the deadlimit, if msg.value is zero,
         //if beneficiary address is zero and if password was already used in the past, revert
-        if(deadlineInSeconds > deadlineLIMITInSeconds
+        require(deadlineInSeconds > deadlineLIMITInSeconds
              || msg.value == 0 || beneficiary == address(0)
-             || RemittanceMapping[passwordHash].deadline > 0 ) {
-            revert();
-        } 
+             || RemittanceMapping[passwordHash].deadline > 0 );
         
         RemittanceStruct memory newRemittance;
         newRemittance.remittanceOwner = msg.sender; 

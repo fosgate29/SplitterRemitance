@@ -113,16 +113,11 @@ contract('Splitter', function(accounts) {
     assert.isTrue(bobEndBalance.gt(bobInitialBalance) , "Bob balance in the blockchain is wrong. ");          
   });
 
-  it("should not be possible to kill Splitter if not owner", async () => {  
-   
+  it("should not be possible to kill Splitter if not owner", async () => {
     await shouldFail.reverting(contract.killMe({ from: bob }));
-    
-  });  
+  });
 
-  it("should be possible to kill Splitter", async () => {  
-   
+  it("should be possible to kill Splitter", async () => {
     await contract.killMe({ from: owner });
-    
-  });   
-
+  }); 
 });
