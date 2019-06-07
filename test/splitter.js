@@ -35,6 +35,11 @@ contract('Splitter', function(accounts) {
     assert.isTrue(successful, "Split didnt start with success");        
   });
 
+  it("should be possible to start a split", async () => {
+    const successful = await  contract.split.call(carol, bob, { from: owner , to:contract.address, value:contribution })
+    assert.isTrue(successful, "Split didnt start with success");        
+  });  
+
   it("should not be possible to start a split with a 0 address", async () => {
     await shouldFail.reverting(contract.split.call(ZERO_ADDRESS,carol ,{ from: owner, value: 9 }));
   });
