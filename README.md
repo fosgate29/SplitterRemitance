@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/fosgate29/SplitterRemitance/tree/master.svg?style=svg)](https://circleci.com/gh/fosgate29/SplitterRemitance/tree/master)
+
 # Splitter
 SPLITTER is a smart contract where one address sends Ether to the contract and half of it goes to address#2 and the other half to address#3
 
