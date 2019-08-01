@@ -1,5 +1,5 @@
 const Remittance = artifacts.require("Remittance");
 
-module.exports = function(deployer) {
-  deployer.deploy(Remittance(1000));
+module.exports = function(deployer, network, accounts) {
+  deployer.deploy(Remittance, 1000);
 };
