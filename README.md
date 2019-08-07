@@ -1,4 +1,5 @@
 [![CircleCI](https://circleci.com/gh/fosgate29/SplitterRemitance/tree/master.svg?style=shield)](https://circleci.com/gh/fosgate29/SplitterRemitance/tree/master)
+[![Coverage Status](https://coveralls.io/repos/github/fosgate29/SplitterRemitance/badge.svg)](https://coveralls.io/github/fosgate29/SplitterRemitance)
 
 These contracts have **not** been audited, use them with caution.
 
